@@ -1,7 +1,7 @@
 library(DESeq2)
 library(RColorBrewer)
 library(gplots)
-setwd("~/Desktop/Testdata/Lukas/BothRounds/RefGr38.p6.94/Group1-6/G1vsG4/")
+setwd("~/Desktop/Testdata/Group1-6/G1vsG4/")
 
 ####prepare input
 
@@ -36,7 +36,7 @@ dds
 countdata <- as.matrix(countdata)
 head(countdata)
 
-# Assign condition (first four are controls, second four contain the expansion)
+# Assign condition 
 condition <- dds$condition
 
 # Analysis with DESeq2 ----------------------------------------------------
