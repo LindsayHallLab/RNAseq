@@ -1,0 +1,39 @@
+libList=$1
+r1PathList=$2
+r2PathList=$3
+outputPath=$4
+refPath=$5
+
+r1Param="";
+r2Param="";
+paramSep=",";
+
+for lib in `cat ${libList}`
+do
+  mkdir ${outputPath}/${lib}
+
+  r1Param="";
+  r2Param="";
+
+  for r1Path in `cat ${r1PathList} | grep "${lib}" | grep "R1.fastq.gz"`
+  do
+	r1Param=$r1Param$paramSep$r1Path 
+  done
+
+  r1Param=${r1Param#","}
+  r1Param=${r1Param%","}
+ 
+  for r2Path in `cat ${r2PathList} | grep "${lib}" | grep "R2.fastq.gz"`
+  do
+        r2Param=$r2Param$paramSep$r2Path
+  done
+
+  r2Param=${r2Param#","}
+  r2Param=${r2Param%","}
+  
+  #echo ${r1Param} 
+  #echo ${r2Param}
+
+  sbatch --wrap " kallisto quant -i ${refPath}  -o ${outputPath}/${lib}/ -b 100 ${r1Param} ${r2Param}" -c 4 -N 1 -e slurm_kallisto_${lib}.err -o slurm_kallisto_${lib}.out --mem=20G -J kallisto 
+
+done
