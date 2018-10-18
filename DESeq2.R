@@ -1,12 +1,13 @@
 library(DESeq2)
 library(RColorBrewer)
 library(gplots)
-setwd("~/Desktop/Testdata/Group1-6/G1vsG4/")
+library(ggplot2)
+setwd("~/Desktop/Testdata/")
 
-####prepare input
+ ####prepare input
 
 
-sampleInfo <- read.csv("Groups_from_Lindsay_experiment.csv", header=TRUE, row.names=1)
+sampleInfo <- read.csv("Experiment.csv", header=TRUE, row.names=1)
 head(sampleInfo)
 ## add X at the beginning of rows beginning with a number (makes it consistent to column names of of the count matrix!)
 if ( any(grepl("^[0-9]", sampleInfo$name)) ) {
@@ -18,7 +19,7 @@ as.character(sampleInfo$name)
 head(sampleInfo)
 ## count matrix (e.g. from DESeq or featureCounts)
 
-countdata<-read.csv("Group_Lindsay_both_rounds_Gr38.p6.94.csv",header=TRUE,row.names=1)
+countdata<-read.csv("Counts.csv",header=TRUE,row.names=1)
 head(countdata)
 countdata = DataFrame(countdata)
 countdata = countdata[,as.character(sampleInfo[,1])]
@@ -36,7 +37,7 @@ dds
 countdata <- as.matrix(countdata)
 head(countdata)
 
-# Assign condition 
+# Assign condition (first four are controls, second four contain the expansion)
 condition <- dds$condition
 
 # Analysis with DESeq2 ----------------------------------------------------
@@ -75,7 +76,7 @@ png("qc-heatmap-samples.png", w=1000, h=1000, pointsize=20)
 heatmap.2(as.matrix(sampleDists), key=F, trace="none",
           col=colorpanel(100, "black", "white"),
           ColSideColors=mycols[condition], RowSideColors=mycols[condition],
-          margin=c(10, 10), main="Sample Distance Matrix")
+          margin=c(19, 19), main="Sample Distance Matrix")
 dev.off()
 
 # Principal components analysis
@@ -149,10 +150,8 @@ attr(res, "filterThreshold")
 plot(attr(res,"filterNumRej"), type="b", xlab="quantiles of baseMean", ylab="number of rejections")
 
 ## MA plot
-## Could do with built-in DESeq2 function:
-## DESeq2::plotMA(dds, ylim=c(-1,1), cex=1)
-## I like mine better:
-maplot <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
+
+maplot <- function (res, thresh=0.05, labelsig=FALSE, textcx=1, ...) {
   with(res, plot(baseMean, log2FoldChange, pch=20, cex=.5, log="x", ...))
   with(subset(res, padj<thresh), points(baseMean, log2FoldChange, col="red", pch=20, cex=1.5))
   if (labelsig) {
@@ -160,12 +159,12 @@ maplot <- function (res, thresh=0.05, labelsig=TRUE, textcx=1, ...) {
     with(subset(res, padj<thresh), textxy(baseMean, log2FoldChange, labs=Gene, cex=textcx, col=2))
   }
 }
-png("diffexpr-maplot.png", 1500, 1000, pointsize=20)
+png("Diffexpr-maplot.png", 1500, 1000, pointsize=20)
 maplot(resdata, main="MA Plot")
 dev.off()
 
-## Volcano plot with "significant" genes labeled
-volcanoplot <- function (res, lfcthresh=2, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=TRUE, textcx=1, ...) {
+## Volcano plot with "significant" genes labeled by labelsig=TRUE
+volcanoplot <- function (res, lfcthresh=2, sigthresh=0.05, main="Volcano Plot", legendpos="bottomright", labelsig=FALSE, textcx=1, ...) {
   with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main=main, ...))
   with(subset(res, padj<sigthresh ), points(log2FoldChange, -log10(pvalue), pch=20, col="red", ...))
   with(subset(res, abs(log2FoldChange)>lfcthresh), points(log2FoldChange, -log10(pvalue), pch=20, col="orange", ...))
@@ -186,17 +185,40 @@ de_total = res[which(resdata$padj < fdr),]
 length(de_total[,1])
 
 head(de_total)
-write.table(gene_names_df(de_total[order(de_total$padj, decreasing=F),]),"DESeq2.de_all.tsv", sep="\t", quote=FALSE, col.names=NA)
 
+
+write.csv(de_total[order(de_total$padj, decreasing=F),],"DESeq2.de_all.csv")
+De_all <-read.csv("DESeq2.de_all.csv")
+#add geneNames to the de genes
+De_all<-merge(x = De_all, y = mart, by = ncol(De_all[1]), all.x=TRUE)
+#bring the last column to front
+De_all <-De_all[,c(ncol(De_all),1:(ncol(De_all)-1))]
+write.csv(De_all,"DESeq2.de_all_geneNames.csv")
+
+#upregulated genes
 de_up = de_total[which(de_total$log2FoldChange>0),]
 de_up = de_up[order(de_up$padj, decreasing=F),]   # order by adjusted p-value
 length(de_up[,1])
-write.table(gene_names_df(de_up),"DESeq2.de_up.tsv", sep="\t", quote=FALSE, col.names=NA)
+write.csv(de_up,"DESeq2.de_up.csv")
+De_upG <-read.csv("DESeq2.de_up.csv")
+#add geneNames to the de genes
+De_upG<-merge(x = De_upG, y = mart, by = ncol(De_upG[1]), all.x=TRUE)
+#bring the last column to front
+De_upG <-De_upG[,c(ncol(De_upG),1:(ncol(De_upG)-1))]
+write.csv(De_upG,"DESeq2.de_up_geneNames.csv")
+
 
 de_down = de_total[which(de_total$log2FoldChange<0),]
 de_down = de_down[order(de_down$padj, decreasing=F),]           # order by adjusted p-value
 length(de_down[,1])
-write.table(gene_names_df(de_down),"DESeq2.de_down.tsv", sep="\t", quote=FALSE, col.names=NA)
+write.csv(de_down,"DESeq2.de_down.csv")
+De_downG <-read.csv("DESeq2.de_down.csv")
+#add geneNames to the de genes
+De_downG<-merge(x = De_downG, y = mart, by = ncol(De_downG[1]), all.x=TRUE)
+#bring the last column to front
+De_downG <-De_downG[,c(ncol(De_downG),1:(ncol(De_downG)-1))]
+write.csv(De_downG,"DESeq2.de_down_geneNames.csv")
+
 
 
 #new kind of MA plot
@@ -212,7 +234,7 @@ dev.off()
 
 
 topN=50
-# topN genes by pvalue    WORK ON THIS PART 
+# topN genes by pvalue    added the gene Names 
 if (length(de_total[,1]) > 0) {
   d = data.frame(id=rownames(de_total), padj=de_total$padj)
   if ( length(rownames(d)) < topN ) topN = length(rownames(d))
@@ -229,12 +251,12 @@ if (length(de_total[,1]) > 0) {
   
   
   write.csv(plotdata,"Plotdata50genes.csv")
-  mart <-read.csv("Mart_transcripts_genesgr38.p6.94.csv",header = TRUE) # load the biomart transcript and Gene Names
+  #mart <-read.csv("Mart_transcripts_genesgr38.p6.94.csv",header = TRUE) # load the biomart transcript and Gene Names
   plotData <- read.csv("Plotdata50genes.csv", header = TRUE) # read the plotdata
   head(mart)
   head(plotData)
   #merge the plotdata with mart names
-  plotData <-merge(x = plotData, y = mart, by = ncol(plotData[1]), all.x=TRUE)
+  plotData <-merge(x = plotData, y = mart, by = ncol(plotData[1]), all.x=TRUE) #Merge the genes 
   
   final <- plotData [!(is.na(plotData$GeneName)) ,]
   final
@@ -256,7 +278,54 @@ if (length(de_total[,1]) > 0) {
   heatmap.2(plotData, scale="row", trace="none", dendrogram="column",
             col=colorRampPalette(rev(brewer.pal(9,"RdBu")))(255),
             main=sprintf("Top %d DE genes (by p-value)", topN), keysize=1,
-            margins = c(8,10),
+            margins = c(17,12),
             cexRow=0.7, cexCol=0.9)
   dev.off()
 }
+
+
+#Incase there is no biomart then we would just put the gene ids in the heatmap
+
+if (length(de_total[,1]) > 0) {
+  d = data.frame(id=rownames(de_total), padj=de_total$padj)
+  if ( length(rownames(d)) < topN ) topN = length(rownames(d))
+  
+  d_topx_padj = d[order(d$padj, decreasing=F),][1:topN,]
+  d_topx_padj
+  plotdata = assay(rld)[as.character(d_topx_padj$id),]  # <- error
+  plotdata
+  
+  ## test
+  setdiff( as.character(d_topx_padj$id), rownames(plotdata))
+  
+  # rownames(plotdata) = sprintf("%s\n(%s)", colnames(rld), rld$condition) #paste(colnames(rld), rld$condition, sep="-")
+  # colnames(plotdata) = sprintf("%s\n(%s)", colnames(rld), rld$condition) #paste(colnames(rld), rld$condition, sep="-")
+  
+  if ( exists("gene_names_dic") ) rownames(plotdata) = id_to_gene_name(rownames(plotdata))  # exchange ids by gene names
+  plotdata
+  
+  pdf(sprintf("No_geneNames_clustering_top%i_DE_genes.pdf",topN), pointsize = 9)
+  heatmap.2(plotdata, scale="row", trace="none", dendrogram="column",
+            col=colorRampPalette(rev(brewer.pal(9,"RdBu")))(255),
+            main=sprintf("Top %d DE genes (by p-value)", topN), keysize=1,
+            margins = c(17,12),
+            cexRow=0.7, cexCol=0.9)
+  dev.off()
+}
+
+#PCA new
+data <- plotPCA(rld, intgroup=c( "condition"), returnData=TRUE)
+percentVar = round(100 * attr(data, "percentVar"))
+ggplot(data, aes(PC1, PC2, color=condition, shape=name)) +
+  geom_hline(aes(yintercept=0), colour="grey") +
+  geom_vline(aes(xintercept=0), colour="grey") +
+  geom_point(size=5) +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  theme_bw(base_size = 14) +
+  ggtitle("PCA\n") +
+  scale_shape_manual(values=c(0:35,0:35))
+ggsave(file=sprintf("PCA.pdf"), width=7, height=6)
+
+
+file.remove("DESeq2.de_all.csv","diffexpr-results.csv","plotdata_aftermerge.csv","Plotdata50genes.csv","DESeq2.de_up.csv","DESeq2.de_down.csv")
