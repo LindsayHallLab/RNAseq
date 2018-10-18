@@ -79,9 +79,7 @@ heatmap.2(as.matrix(sampleDists), key=F, trace="none",
 dev.off()
 
 # Principal components analysis
-## Could do with built-in DESeq2 function:
-## DESeq2::plotPCA(rld, intgroup="condition")
-## I like mine better:
+
 rld_pca <- function (rld, intgroup = "condition", ntop = 500, colors=NULL, legendpos="bottomleft", main="PCA Biplot", textcx=1, ...) {
   require(genefilter)
   require(calibrate)
